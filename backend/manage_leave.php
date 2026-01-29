@@ -45,6 +45,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
+        // Insert notification for the applicant
+        $notif_msg = "Your leave application for ID #$leave_id has been $action by the Admin.";
+        $notif_sql = "INSERT INTO notifications (user_id, message) SELECT user_id, ? FROM leaves WHERE id = ?";
+        $notif_stmt = $conn->prepare($notif_sql);
+        $notif_stmt->bind_param("si", $notif_msg, $leave_id);
+        $notif_stmt->execute();
+
+        // If approved, notify the alternative staff too
+        if ($action === 'Approved') {
+            $alt_msg = "You have been assigned as the alternative staff for a leave application (ID #$leave_id) which has been approved.";
+            $alt_notif_sql = "INSERT INTO notifications (user_id, message) SELECT alt_staff_id, ? FROM leaves WHERE id = ?";
+            $alt_notif_stmt = $conn->prepare($alt_notif_sql);
+            $alt_notif_stmt->bind_param("si", $alt_msg, $leave_id);
+            $alt_notif_stmt->execute();
+        }
+
         $conn->commit();
         echo json_encode(['status' => 'success', 'message' => 'Leave application ' . strtolower($action) . ' successfully']);
     } catch (Exception $e) {

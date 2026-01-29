@@ -22,6 +22,37 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
+    // Backend Validation: Check if submitted shift matches user's shift_type
+    $user_query = "SELECT shift_type FROM users WHERE user_id = ?";
+    $u_stmt = $conn->prepare($user_query);
+    $u_stmt->bind_param("s", $user_id);
+    $u_stmt->execute();
+    $u_res = $u_stmt->get_result();
+    $u_data = $u_res->fetch_assoc();
+    
+    $user_shift_type = $u_data['shift_type'];
+    $mapped_shift = 'General';
+    if (stripos($user_shift_type, 'Day') !== false) $mapped_shift = 'Day Shift';
+    elseif (stripos($user_shift_type, 'Night') !== false) $mapped_shift = 'Night Shift';
+
+    if ($shift !== $mapped_shift) {
+        echo json_encode(['status' => 'error', 'message' => 'You can only apply for a leave on your assigned shift: ' . $mapped_shift]);
+        exit();
+    }
+
+    // Backend Validation: Check if alt_staff_id is from the same shift_type
+    $alt_query = "SELECT shift_type FROM users WHERE user_id = ?";
+    $a_stmt = $conn->prepare($alt_query);
+    $a_stmt->bind_param("s", $alt_staff_id);
+    $a_stmt->execute();
+    $a_res = $a_stmt->get_result();
+    $a_data = $a_res->fetch_assoc();
+
+    if (!$a_data || $a_data['shift_type'] !== $user_shift_type) {
+        echo json_encode(['status' => 'error', 'message' => 'Alternative arrangement must be with a staff member from the same shift.']);
+        exit();
+    }
+
     $sql = "INSERT INTO leaves (user_id, leave_date, shift, duration, reason, alt_staff_id) VALUES (?, ?, ?, ?, ?, ?)";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("ssssss", $user_id, $leave_date, $shift, $duration, $reason, $alt_staff_id);

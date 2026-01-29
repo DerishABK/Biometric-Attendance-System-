@@ -215,6 +215,73 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
         --bs-btn-active-bg: #6ea8fe;
         --bs-btn-active-border-color: #6ea8fe;
     }
+
+    /* Camera Overlay Styles */
+    .camera-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+    .face-frame {
+      width: 260px;
+      height: 330px;
+      border: 3px solid #ef4444; /* Default Red */
+      border-radius: 50% / 40%;
+      box-shadow: 0 0 0 1000px rgba(0, 0, 0, 0.6);
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    .face-frame::after {
+      content: 'POSITION FACE IN FRAME';
+      position: absolute;
+      top: -35px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.7rem;
+      font-weight: bold;
+      color: white;
+      white-space: nowrap;
+      letter-spacing: 1px;
+      background: rgba(239, 68, 68, 0.8);
+      padding: 2px 10px;
+      border-radius: 4px;
+    }
+    .face-frame.status-ok {
+      border-color: #10b981; /* Green */
+      box-shadow: 0 0 20px rgba(16, 185, 129, 0.4), 0 0 0 1000px rgba(0, 0, 0, 0.4);
+    }
+    .face-frame.status-ok::after {
+      content: 'FACE DETECTED';
+      background: rgba(16, 185, 129, 0.8);
+    }
+    .camera-instructions {
+      position: absolute;
+      bottom: 80px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.8rem;
+      color: rgba(255, 255, 255, 0.9);
+      text-align: center;
+      width: 100%;
+      text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+      font-weight: 500;
+    }
+    .face-frame {
+      border-color: #10b981 !important; /* Always Green */
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.4), 0 0 0 1000px rgba(0, 0, 0, 0.5) !important;
+    }
+    .face-frame::after {
+      content: 'ALIGN FACE IN GRID' !important;
+      background: rgba(16, 185, 129, 0.8) !important;
+    }
   </style>
 </head>
 <body>
@@ -448,8 +515,15 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
         <div class="modal-body p-0 overflow-hidden position-relative" style="aspect-ratio: 4/3; background: #000;">
           <video id="video" autoplay playsinline class="w-100 h-100" style="object-fit: cover;"></video>
           <canvas id="canvas" class="d-none"></canvas>
-          <div class="position-absolute bottom-0 start-50 translate-middle-x mb-3">
-             <button type="button" class="btn btn-primary rounded-circle p-3 shadow-lg" onclick="takeSnapshot()" style="width: 60px; height: 60px;">
+          
+          <!-- Camera Overlay -->
+          <div class="camera-overlay">
+            <div class="face-frame" id="faceFrame"></div>
+            <div class="camera-instructions" id="cameraInstructions">Align face within the grid for capture</div>
+          </div>
+          
+          <div class="position-absolute bottom-0 start-50 translate-middle-x mb-3" style="z-index: 15;">
+             <button type="button" id="captureBtn" class="btn btn-primary rounded-circle p-3 shadow-lg" onclick="takeSnapshot()" style="width: 60px; height: 60px;">
                 <i class="bi bi-camera-fill fs-4"></i>
              </button>
           </div>
@@ -467,9 +541,19 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
     
     async function openCamera() {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-        document.getElementById('video').srcObject = stream;
+        stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+                width: { ideal: 640 },
+                height: { ideal: 480 },
+                facingMode: 'user' 
+            } 
+        });
+        const video = document.getElementById('video');
+        video.srcObject = stream;
         cameraModal.show();
+        
+        // Always enable capture button in simple mode
+        document.getElementById('captureBtn').disabled = false;
       } catch (err) {
         alert("Could not access camera: " + err.message);
       }
@@ -484,13 +568,31 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
     function takeSnapshot() {
       const video = document.getElementById('video');
       const canvas = document.getElementById('canvas');
+      const frame = document.getElementById('faceFrame');
       const context = canvas.getContext('2d');
       
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      // Get dimensions for cropping
+      const videoRect = video.getBoundingClientRect();
+      const frameRect = frame.getBoundingClientRect();
       
-      const dataURL = canvas.toDataURL('image/jpeg');
+      // Calculate scale between displayed video and actual stream pixels
+      const scaleX = video.videoWidth / videoRect.width;
+      const scaleY = video.videoHeight / videoRect.height;
+      
+      // Calculate crop area in source coordinates
+      const startX = (frameRect.left - videoRect.left) * scaleX;
+      const startY = (frameRect.top - videoRect.top) * scaleY;
+      const width = frameRect.width * scaleX;
+      const height = frameRect.height * scaleY;
+      
+      // Set canvas to a standard portrait resolution
+      canvas.width = 480;
+      canvas.height = 640;
+      
+      // Draw the cropped area to the canvas
+      context.drawImage(video, startX, startY, width, height, 0, 0, canvas.width, canvas.height);
+      
+      const dataURL = canvas.toDataURL('image/jpeg', 0.9);
       document.getElementById('capturedPhoto').value = dataURL;
       
       // Update Preview
@@ -646,7 +748,7 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
       const sentenceRegex = /^\d+\sYears$/i;
       const addressRegex = /^[a-zA-Z0-9\s,.\-\/#]+$/;
       const alphaNumRegex = /^[a-zA-Z0-9\-]+$/;
-
+ 
       // Set System Date for Admission
       const admissionInput = document.querySelector('input[name="admission_date"]');
       const today = new Date().toISOString().split('T')[0];
@@ -704,7 +806,7 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
       .then(data => {
         if (data.status === 'success') {
           alert(data.message + ' Prisoner ID: ' + data.prisoner_id);
-          window.location.reload();
+          window.location.href = 'prisoner-list.php';
         } else {
           alert('Error: ' + data.message);
           btn.disabled = false;

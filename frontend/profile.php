@@ -24,14 +24,23 @@ $role = strtolower($user['role']);
 $dashboard_link = "dashboard-$role.php";
 if ($role === 'admin') $dashboard_link = "dashboard-admin.php";
 
-// Fetch alternative staff members (same role, excluding current user)
-$alt_stmt = $conn->prepare("SELECT user_id, full_name, designation FROM users WHERE role = ? AND user_id != ?");
-$alt_stmt->bind_param("ss", $user['role'], $user_id);
+// Fetch alternative staff members (same role AND same shift, excluding current user)
+$alt_stmt = $conn->prepare("SELECT user_id, full_name, designation FROM users WHERE role = ? AND shift_type = ? AND user_id != ?");
+$alt_stmt->bind_param("sss", $user['role'], $user['shift_type'], $user_id);
 $alt_stmt->execute();
 $alt_staff_result = $alt_stmt->get_result();
 $alt_staff_list = [];
 while ($row = $alt_staff_result->fetch_assoc()) {
     $alt_staff_list[] = $row;
+}
+
+// Logic to determine which shift category the user belongs to
+$user_shift_type = $user['shift_type'];
+$mapped_shift = 'General';
+if (stripos($user_shift_type, 'Day') !== false) {
+    $mapped_shift = 'Day Shift';
+} elseif (stripos($user_shift_type, 'Night') !== false) {
+    $mapped_shift = 'Night Shift';
 }
 ?>
 <!DOCTYPE html>
@@ -227,11 +236,12 @@ while ($row = $alt_staff_result->fetch_assoc()) {
                   <div class="col-md-6">
                     <label class="form-label small text-secondary">Shift Type</label>
                     <select name="shift" class="form-select" required>
-                      <option value="" disabled selected>Select Shift</option>
-                      <option value="Day Shift">Day Shift</option>
-                      <option value="Night Shift">Night Shift</option>
-                      <option value="General">General</option>
+                      <option value="" disabled>Select Shift</option>
+                      <option value="Day Shift" <?php echo ($mapped_shift === 'Day Shift') ? 'selected' : 'disabled'; ?>>Day Shift</option>
+                      <option value="Night Shift" <?php echo ($mapped_shift === 'Night Shift') ? 'selected' : 'disabled'; ?>>Night Shift</option>
+                      <option value="General" <?php echo ($mapped_shift === 'General') ? 'selected' : 'disabled'; ?>>General</option>
                     </select>
+                    <small class="text-info" style="font-size: 0.7rem;">Only your assigned shift can be selected.</small>
                   </div>
                   
                   <div class="col-md-6">
@@ -274,6 +284,24 @@ while ($row = $alt_staff_result->fetch_assoc()) {
               </form>
             </div>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notification Modal -->
+  <div class="modal fade" id="notificationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content bg-dark text-white border-secondary">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title"><i class="bi bi-bell-fill me-2 text-warning"></i>New Notification</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="notificationBody">
+          <!-- Notification message will be injected here -->
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-primary btn-sm" id="markReadBtn">Mark as Read</button>
         </div>
       </div>
     </div>
@@ -365,11 +393,42 @@ while ($row = $alt_staff_result->fetch_assoc()) {
       }
     }
 
+    function checkNotifications() {
+      fetch('../backend/get_notifications.php')
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'success' && data.data.length > 0) {
+            const notif = data.data[0]; // Show the most recent one
+            const modal = new bootstrap.Modal(document.getElementById('notificationModal'));
+            document.getElementById('notificationBody').innerText = notif.message;
+            
+            document.getElementById('markReadBtn').onclick = function() {
+              const formData = new FormData();
+              formData.append('id', notif.id);
+              fetch('../backend/mark_notification_read.php', {
+                method: 'POST',
+                body: formData
+              }).then(() => {
+                modal.hide();
+                // Check for more notifications after a short delay
+                setTimeout(checkNotifications, 1000);
+              });
+            };
+            
+            modal.show();
+          }
+        })
+        .catch(e => console.error('Error fetching notifications:', e));
+    }
+
     document.addEventListener('DOMContentLoaded', () => {
       const urlParams = new URLSearchParams(window.location.search);
       if (urlParams.get('action') === 'apply_leave') {
         toggleLeaveSection();
       }
+      
+      // Check for notifications on load
+      checkNotifications();
     });
   </script>
 </body>

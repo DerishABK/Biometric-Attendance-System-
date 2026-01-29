@@ -2,9 +2,17 @@
 require_once '../backend/session_start.php';
 include '../backend/db_connect.php';
 
-// Fetch prisoners from database
-$sql = "SELECT prisoner_id, full_name, cell_number, crime, photo_path FROM prisoners ORDER BY created_at DESC";
+// Fetch prisoners from database grouped by block/wing and ordered by most recent first
+$sql = "SELECT prisoner_id, full_name, cell_number, crime, photo_path, block_wing FROM prisoners ORDER BY block_wing ASC, created_at DESC";
 $result = $conn->query($sql);
+
+$prisoners_by_section = [];
+if ($result->num_rows > 0) {
+    while($row = $result->fetch_assoc()) {
+        $section = $row['block_wing'] ?: 'Unassigned Section';
+        $prisoners_by_section[$section][] = $row;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -134,19 +142,24 @@ $result = $conn->query($sql);
               </thead>
               <tbody>
                 <?php
-                if ($result->num_rows > 0) {
-                    while($row = $result->fetch_assoc()) {
-                        $photo = !empty($row['photo_path']) ? $row['photo_path'] : 'https://ui-avatars.com/api/?name=' . urlencode($row['full_name']) . '&background=random';
-                        echo "<tr>";
-                        echo "<td><img src='" . $photo . "' class='rounded' style='width:35px; height:35px; object-fit:cover;'></td>";
-                        echo "<td><span class='badge-id'>" . $row["prisoner_id"] . "</span></td>";
-                        echo "<td>" . $row["full_name"] . "</td>";
-                        echo "<td>" . $row["cell_number"] . "</td>";
-                        echo "<td>" . $row["crime"] . "</td>";
-                        echo "</tr>";
+                if (!empty($prisoners_by_section)) {
+                    foreach ($prisoners_by_section as $section => $prisoners) {
+                        // Section Header Row
+                        echo "<tr class='table-dark'><td colspan='5' class='py-3 ps-3 fw-bold text-info' style='background: rgba(13, 110, 253, 0.15); font-size: 1.1rem;'><i class='bi bi-grid-3x3-gap-fill me-2'></i>" . htmlspecialchars($section) . "</td></tr>";
+                        
+                        foreach ($prisoners as $row) {
+                            $photo = !empty($row['photo_path']) ? $row['photo_path'] : 'https://ui-avatars.com/api/?name=' . urlencode($row['full_name']) . '&background=random';
+                            echo "<tr>";
+                            echo "<td><img src='" . $photo . "' class='rounded' style='width:35px; height:35px; object-fit:cover;'></td>";
+                            echo "<td><span class='badge-id'>" . $row["prisoner_id"] . "</span></td>";
+                            echo "<td>" . $row["full_name"] . "</td>";
+                            echo "<td>" . $row["cell_number"] . "</td>";
+                            echo "<td>" . $row["crime"] . "</td>";
+                            echo "</tr>";
+                        }
                     }
                 } else {
-                    echo "<tr><td colspan='4' class='text-center py-4 text-secondary'>No prisoners registered yet.</td></tr>";
+                    echo "<tr><td colspan='5' class='text-center py-4 text-secondary'>No prisoners registered yet.</td></tr>";
                 }
                 ?>
               </tbody>
