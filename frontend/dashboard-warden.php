@@ -91,11 +91,17 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
     .upload-box {
       border: 2px dashed rgba(255, 255, 255, 0.2);
       border-radius: 0.75rem;
-      padding: 2rem;
+      height: 200px; /* Set fixed height to prevent oversizing */
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       text-align: center;
       transition: all 0.2s;
       cursor: pointer;
       background: rgba(255, 255, 255, 0.02);
+      overflow: hidden; /* Prevent image from overlapping or spilling out */
+      position: relative;
     }
     .upload-box:hover {
       border-color: #0d6efd;
@@ -233,10 +239,19 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
           <li class="nav-item">
             <a class="nav-link" href="help-guidelines.php" target="_blank"><i class="bi bi-question-circle me-1"></i> Help</a>
           </li>
-          <li class="nav-item ms-lg-3">
-            <a class="btn btn-outline-light btn-sm text-danger fw-bold" href="../backend/logout.php">
-              <i class="bi bi-box-arrow-right"></i> Logout
+          <li class="nav-item ms-lg-3 dropdown">
+            <a href="#" class="nav-link dropdown-toggle d-flex align-items-center" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+              <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; color: white;">
+                <i class="bi bi-person-fill"></i>
+              </div>
+              <span>Profile</span>
             </a>
+            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg" aria-labelledby="profileDropdown">
+              <li><a class="dropdown-item" href="dashboard-warden.php"><i class="bi bi-speedometer2 me-2"></i> Main Page</a></li>
+              <li><a class="dropdown-item" href="profile.php"><i class="bi bi-person-circle me-2"></i> Profile</a></li>
+              <li><hr class="dropdown-divider border-secondary"></li>
+              <li><a class="dropdown-item text-danger fw-bold" href="../backend/logout.php"><i class="bi bi-box-arrow-right me-2"></i> Logout</a></li>
+            </ul>
           </li>
         </ul>
       </div>
@@ -374,14 +389,23 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
             <h5 class="section-title"><i class="bi bi-fingerprint me-2"></i>Biometric &amp; Identification</h5>
             <div class="row g-4 mb-4">
               
-              <!-- Photo Upload -->
+              <!-- Photo Section -->
               <div class="col-md-6">
                 <label class="form-label mb-2">Prisoner Photo</label>
-                <div class="upload-box" onclick="document.getElementById('photoInput').click()">
-                  <i class="bi bi-camera fs-1 text-secondary"></i>
-                  <p class="mb-0 mt-2 text-secondary">Click to upload or capture photo</p>
-                  <input type="file" id="photoInput" hidden="" accept="image/*">
+                <div class="upload-options d-flex gap-2 mb-2">
+                  <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1" onclick="openCamera()">
+                    <i class="bi bi-camera me-1"></i> Capture
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" onclick="document.getElementById('photoInput').click()">
+                    <i class="bi bi-upload me-1"></i> Upload
+                  </button>
                 </div>
+                <div class="upload-box" id="photoPreview">
+                  <i class="bi bi-person-bounding-box fs-1 text-secondary"></i>
+                  <p class="mb-0 mt-2 text-secondary small">No photo selected</p>
+                </div>
+                <input type="file" id="photoInput" name="prisoner_photo" hidden="" accept="image/*" onchange="previewFile(this)">
+                <input type="hidden" id="capturedPhoto" name="captured_photo">
               </div>
 
               <!-- Fingerprint -->
@@ -413,11 +437,81 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
     </div>
   </div>
 
+  <!-- Camera Modal -->
+  <div class="modal fade" id="cameraModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content bg-dark text-white border-secondary">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title"><i class="bi bi-camera me-2"></i>Capture Photo</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" onclick="closeCamera()"></button>
+        </div>
+        <div class="modal-body p-0 overflow-hidden position-relative" style="aspect-ratio: 4/3; background: #000;">
+          <video id="video" autoplay playsinline class="w-100 h-100" style="object-fit: cover;"></video>
+          <canvas id="canvas" class="d-none"></canvas>
+          <div class="position-absolute bottom-0 start-50 translate-middle-x mb-3">
+             <button type="button" class="btn btn-primary rounded-circle p-3 shadow-lg" onclick="takeSnapshot()" style="width: 60px; height: 60px;">
+                <i class="bi bi-camera-fill fs-4"></i>
+             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
   <script>
-    let currentStep = 1;
+    let stream = null;
+    const cameraModal = new bootstrap.Modal(document.getElementById('cameraModal'));
+    
+    async function openCamera() {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+        document.getElementById('video').srcObject = stream;
+        cameraModal.show();
+      } catch (err) {
+        alert("Could not access camera: " + err.message);
+      }
+    }
+
+    function closeCamera() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    }
+
+    function takeSnapshot() {
+      const video = document.getElementById('video');
+      const canvas = document.getElementById('canvas');
+      const context = canvas.getContext('2d');
+      
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      const dataURL = canvas.toDataURL('image/jpeg');
+      document.getElementById('capturedPhoto').value = dataURL;
+      
+      // Update Preview
+      const preview = document.getElementById('photoPreview');
+      preview.innerHTML = `<img src="${dataURL}" class="w-100 h-100" style="object-fit: cover; position: absolute; top: 0; left: 0;">`;
+      
+      closeCamera();
+      cameraModal.hide();
+    }
+
+    function previewFile(input) {
+      if (input.files && input.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const preview = document.getElementById('photoPreview');
+          preview.innerHTML = `<img src="${e.target.result}" class="w-100 h-100" style="object-fit: cover; position: absolute; top: 0; left: 0;">`;
+          document.getElementById('capturedPhoto').value = ""; // Clear captured if uploading
+        };
+        reader.readAsDataURL(input.files[0]);
+      }
+    }
     const totalSteps = 3;
 
     function showStep(step) {

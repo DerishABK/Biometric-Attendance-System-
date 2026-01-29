@@ -177,9 +177,20 @@ body {
         </ul>
       </div>
 
-      <a href="../backend/logout.php" class="btn btn-outline-danger btn-sm fw-bold">
-      <i class="bi bi-box-arrow-right me-1"></i> Logout
-    </a>
+      <div class="dropdown">
+        <a href="#" class="nav-link dropdown-toggle d-flex align-items-center text-white text-decoration-none" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+          <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; color: white;">
+            <i class="bi bi-person-fill"></i>
+          </div>
+          <span>Profile</span>
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg" aria-labelledby="profileDropdown">
+          <li><a class="dropdown-item" href="dashboard-guard.php"><i class="bi bi-speedometer2 me-2"></i> Main Page</a></li>
+          <li><a class="dropdown-item" href="profile.php"><i class="bi bi-person-circle me-2"></i> Profile</a></li>
+          <li><hr class="dropdown-divider border-secondary"></li>
+          <li><a class="dropdown-item text-danger fw-bold" href="../backend/logout.php"><i class="bi bi-box-arrow-right me-2"></i> Logout</a></li>
+        </ul>
+      </div>
     </div>
   </div>
 </nav>

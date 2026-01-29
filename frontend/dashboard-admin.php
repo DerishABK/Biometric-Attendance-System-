@@ -1,8 +1,22 @@
 <?php
 require_once '../backend/session_start.php';
+include '../backend/db_connect.php';
+
 if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'admin') {
     header("Location: index.php");
     exit();
+}
+
+// Fetch staff names (guards and wardens) for the activity feed
+$staffNames = [];
+$res = $conn->query("SELECT full_name FROM users WHERE role IN ('guard', 'warden') ORDER BY full_name");
+if ($res && $res->num_rows > 0) {
+    while ($row = $res->fetch_assoc()) {
+        $staffNames[] = $row['full_name'];
+    }
+} else {
+    // Fallback if no staff found
+    $staffNames = ["Duty Officer", "System Admin", "Internal Security"];
 }
 ?>
 <!DOCTYPE html>
@@ -16,169 +30,14 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'admin') {
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <!-- Bootstrap Icons -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="admin-style.css">
   
   <style>
     :root {
-      --primary-blue: #0d6efd;
-      --sidebar-width: 220px;
-      --glass-bg: rgba(15, 23, 42, 0.85);
-      --glass-border: rgba(255, 255, 255, 0.08);
       --accent-color: #0d6efd;
     }
     
-    body {
-      min-height: 100vh;
-      background: radial-gradient(circle at top left, #1e3a8a, #050505 60%);
-      color: #fff !important;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      margin: 0;
-      overflow-x: hidden;
-    }
-    
-    * { color: inherit; }
-    
-    .text-muted { color: rgba(255, 255, 255, 0.5) !important; }
-    .text-primary { color: var(--accent-color) !important; }
-    .text-success { color: #10b981 !important; }
-    .text-info { color: #0ea5e9 !important; }
-    .text-warning { color: #f59e0b !important; }
-    .text-danger { color: #ef4444 !important; }
-
-    /* Button Hover Fixes */
-    .btn-outline-light:hover {
-      background-color: #fff !important;
-      color: #000 !important;
-    }
-    .btn-outline-light:hover * {
-      color: #000 !important;
-    }
-    
-    /* Sidebar */
-    .sidebar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      bottom: 0;
-      width: var(--sidebar-width);
-      background: var(--glass-bg);
-      backdrop-filter: blur(15px);
-      border-right: 1px solid var(--glass-border);
-      color: #f8f9fa;
-      padding: 1rem 0;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      z-index: 1000;
-    }
-    
-    .sidebar-header {
-      padding: 0 1.25rem 1.5rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      margin-bottom: 0.75rem;
-    }
-    
-    .sidebar-brand {
-      color: #fff;
-      text-decoration: none;
-      font-size: 1.2rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-    
-    .sidebar-brand i {
-      color: var(--accent-color);
-    }
-    
-    .nav-link {
-      color: rgba(255, 255, 255, 0.6) !important;
-      padding: 0.65rem 1.25rem;
-      margin: 0.15rem 0.5rem;
-      border-radius: 0.65rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      transition: all 0.2s ease;
-      font-weight: 500;
-      font-size: 0.85rem;
-    }
-    
-    .nav-link:hover, .nav-link.active {
-      background: rgba(13, 110, 253, 0.1);
-      color: #fff !important;
-    }
-    
-    .nav-link i {
-      font-size: 1rem;
-      width: 18px;
-    }
-    
-    /* Main Content */
-    .main-content {
-      margin-left: var(--sidebar-width);
-      padding: 1.5rem;
-      min-height: 100vh;
-    }
-    
-    .top-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 1.25rem;
-    }
-    
-    .page-title h1 {
-      font-size: 1.4rem;
-      font-weight: 700;
-      margin: 0;
-    }
-    
-    .user-avatar {
-      width: auto;
-      min-width: 60px;
-      height: 32px;
-      padding: 0 12px;
-      border-radius: 8px;
-      background: rgba(13, 110, 253, 0.1);
-      border: 1px solid rgba(13, 110, 253, 0.2);
-      color: var(--accent-color);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      cursor: pointer;
-      font-size: 0.8rem;
-    }
-    
-    /* App Cards */
-    .app-card {
-      background: var(--glass-bg);
-      backdrop-filter: blur(12px);
-      border-radius: 1rem;
-      border: 1px solid var(--glass-border);
-      padding: 1rem;
-      margin-bottom: 1rem;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-      color: #fff !important;
-      transition: all 0.3s ease;
-    }
-    
-    .app-card:hover {
-      transform: translateY(-5px);
-      border-color: rgba(13, 110, 253, 0.4);
-      box-shadow: 0 8px 30px rgba(0,0,0,0.4);
-    }
-    
-    .card-title {
-      font-size: 0.95rem;
-      font-weight: 600;
-      color: #fff;
-      margin-bottom: 1rem;
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-    
-    /* Stat Metrics */
+    /* Stats Metrics (Page Specific) */
     .stat-metric {
       display: flex;
       align-items: center;
@@ -292,56 +151,7 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'admin') {
   </style>
 </head>
 <body>
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <div class="sidebar-header">
-      <a href="#" class="sidebar-brand">
-        <i class="bi bi-shield-lock-fill"></i>
-        <span>Prison Admin</span>
-      </a>
-    </div>
-    
-    <div class="sidebar-menu">
-      <ul class="nav flex-column">
-        <li class="nav-item">
-          <a href="#" class="nav-link active">
-            <i class="bi bi-grid-1x2-fill"></i>
-            <span>Dashboard</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="admin-prisoner-list.php" class="nav-link">
-            <i class="bi bi-people-fill"></i>
-            <span>Prisoners</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="staff-list.php" class="nav-link">
-            <i class="bi bi-person-badge-fill"></i>
-            <span>Staff</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="admin-visitation.php" class="nav-link">
-            <i class="bi bi-calendar-event-fill"></i>
-            <span>Visitation</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="admin-settings.php" class="nav-link">
-            <i class="bi bi-gear-fill"></i>
-            <span>Settings</span>
-          </a>
-        </li>
-        <li class="nav-item mt-4">
-          <a href="../backend/logout.php" class="nav-link fw-bold" style="color: #ff4d4d !important;">
-            <i class="bi bi-box-arrow-right me-2"></i>
-            <span>Logout</span>
-          </a>
-        </li>
-      </ul>
-    </div>
-  </div>
+  <?php include 'admin-sidebar.php'; ?>
 
   <!-- Main Content -->
   <div class="main-content">
@@ -404,47 +214,29 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'admin') {
             </div>
           </div>
           
-          <div class="table-container">
+          <div class="table-container" style="min-height: 480px;">
             <table class="table mb-0">
               <thead>
                 <tr>
+                  <th>Date</th>
                   <th>Time</th>
                   <th>ID</th>
                   <th>Name</th>
+                  <th>Details</th>
                   <th>Status</th>
                 </tr>
               </thead>
-              <tbody>
-                <tr>
-                  <td>10:45 AM</td>
-                  <td><span class="text-primary">#PR-1001</span></td>
-                  <td>John Doe</td>
-                  <td><span class="badge-custom bg-success-soft">Done</span></td>
-                </tr>
-                <tr>
-                  <td>10:30 AM</td>
-                  <td><span class="text-primary">#PR-1045</span></td>
-                  <td>Mike Johnson</td>
-                  <td><span class="badge-custom bg-warning-soft">Live</span></td>
-                </tr>
-                <tr>
-                  <td>10:15 AM</td>
-                  <td><span class="text-primary">#PR-1098</span></td>
-                  <td>Sarah Williams</td>
-                  <td><span class="badge-custom bg-success-soft">Done</span></td>
-                </tr>
-                <tr>
-                  <td>09:50 AM</td>
-                  <td><span class="text-primary">#PR-1123</span></td>
-                  <td>David Brown</td>
-                  <td><span class="badge-custom bg-danger-soft">Missed</span></td>
-                </tr>
+              <tbody id="activityFeed">
+                <!-- Data will be populated by JavaScript -->
               </tbody>
             </table>
           </div>
-          <div class="mt-3 text-center">
-            <button class="btn btn-link text-primary text-decoration-none fw-600 p-0" style="font-size: 0.8rem;">
-              View All <i class="bi bi-chevron-right"></i>
+          <div class="mt-3 d-flex justify-content-between align-items-center">
+            <button id="prevPageBtn" class="btn btn-link text-primary text-decoration-none fw-600 p-0" style="font-size: 0.8rem;" disabled>
+              <i class="bi bi-chevron-left"></i> Previous Page
+            </button>
+            <button id="nextPageBtn" class="btn btn-link text-primary text-decoration-none fw-600 p-0" style="font-size: 0.8rem;">
+              Next Page <i class="bi bi-chevron-right"></i>
             </button>
           </div>
         </div>
@@ -496,27 +288,7 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'admin') {
     </div>
   </div>
 
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-  
-  <script>
-    document.addEventListener('DOMContentLoaded', function() {
-      const sidebarToggler = document.querySelector('.sidebar-toggler');
-      const sidebar = document.querySelector('.sidebar');
-      if (sidebarToggler) {
-        sidebarToggler.addEventListener('click', function() {
-          sidebar.classList.toggle('show');
-        });
-      }
-      document.addEventListener('click', function(event) {
-        if (window.innerWidth < 992 && sidebar.classList.contains('show')) {
-          if (!sidebar.contains(event.target) && !sidebarToggler.contains(event.target)) {
-            sidebar.classList.remove('show');
-          }
-        }
-      });
-    });
-  </script>
+
   <!-- Export Modal -->
   <div class="modal fade" id="exportModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -559,7 +331,8 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'admin') {
 
   <script>
     async function automatedExport(type) {
-        const modal = bootstrap.Modal.getInstance(document.getElementById('exportModal'));
+        const modalEl = document.getElementById('exportModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
         const btn = event.currentTarget;
         const originalHtml = btn.innerHTML;
         
@@ -568,6 +341,7 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'admin') {
             btn.disabled = true;
 
             const response = await fetch(`../backend/get_export_data.php?type=${type}`);
+            if (!response.ok) throw new Error('Network response was not ok');
             const data = await response.json();
             
             const { jsPDF } = window.jspdf;
@@ -588,7 +362,6 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'admin') {
             doc.setFontSize(9);
             doc.text(`Official System Report | ${timestamp}`, 220, 14);
 
-            // Table Prep
             const columns = type === 'staff' 
                 ? [["ID", "Name", "Role", "Designation", "Status", "Wing", "Shift"]]
                 : [["ID", "Full Name", "Wing", "Cell", "Crime", "Admission", "Release"]];
@@ -598,7 +371,6 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'admin') {
                 : [item.prisoner_id, item.full_name, item.block_wing, item.cell_number, item.crime, item.admission_date, item.expected_release]
             );
 
-            // Generate Table
             doc.autoTable({
                 head: columns,
                 body: rows,
@@ -610,9 +382,12 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'admin') {
                 margin: { left: 14, right: 14 }
             });
 
-            // Auto-Download
             doc.save(`${type.charAt(0).toUpperCase() + type.slice(1)}_Report_${now.getTime()}.pdf`);
-            modal.hide();
+            
+            // Reliable Modal Hiding
+            if (modal) modal.hide();
+            cleanupBackdrops();
+
         } catch (error) {
             console.error('Export Error:', error);
             alert('Failed to generate report. Please try again.');
@@ -620,6 +395,13 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'admin') {
             btn.innerHTML = originalHtml;
             btn.disabled = false;
         }
+    }
+
+    function cleanupBackdrops() {
+      document.querySelectorAll('.modal-backdrop').forEach(b => b.remove());
+      document.body.classList.remove('modal-open');
+      document.body.style.overflow = '';
+      document.body.style.paddingRight = '';
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -632,15 +414,122 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'admin') {
         });
       }
 
-      // Close sidebar if clicking outside on mobile
       document.addEventListener('click', (e) => {
         if (window.innerWidth <= 992) {
-          if (!sidebar.contains(e.target) && !toggler.contains(e.target) && sidebar.classList.contains('show')) {
+          if (sidebar && !sidebar.contains(e.target) && toggler && !toggler.contains(e.target) && sidebar.classList.contains('show')) {
             sidebar.classList.remove('show');
           }
         }
       });
-    });
-  </script>
-</body>
-</html>
+
+      // --- Dynamic Persistent Activity Feed Logic ---
+      const activityFeed = document.getElementById('activityFeed');
+      const guardNames = <?php echo json_encode($staffNames); ?>;
+      const activityTypes = ["Biometric Check", "Meal Attendance", "Wing Transfer", "Medical Visit", "Security Patrol", "Visitation Log", "Workshop Shift", "Recreation Period"];
+      
+      const statuses = [
+        { label: 'Done', class: 'bg-success-soft' },
+        { label: 'Live', class: 'bg-warning-soft' },
+        { label: 'Missed', class: 'bg-danger-soft' }
+      ];
+
+      const ITEMS_PER_PAGE = 8;
+      let currentPage = 0;
+      
+      // Load and Validate Activities (clear if old structure)
+      let activities = JSON.parse(localStorage.getItem('prison_activities_v2') || '[]');
+      if (activities.length > 0 && !activities[0].date) {
+        activities = []; // Migrate
+      }
+
+      function createActivity(isVeryOld = false) {
+        const now = new Date();
+        if (isVeryOld) {
+          now.setDate(now.getDate() - Math.floor(Math.random() * 10));
+          now.setMinutes(now.getMinutes() - Math.floor(Math.random() * 1000));
+        }
+        
+        const dateOptions = { month: 'short', day: 'numeric' };
+        return {
+          date: now.toLocaleDateString('en-US', dateOptions),
+          time: now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          id: '#LOG-' + Math.floor(1000 + Math.random() * 9000),
+          name: guardNames[Math.floor(Math.random() * guardNames.length)],
+          details: activityTypes[Math.floor(Math.random() * activityTypes.length)],
+          status: statuses[Math.floor(Math.random() * statuses.length)],
+          timestamp: now.getTime()
+        };
+      }
+
+      function updateDisplay() {
+        activityFeed.innerHTML = '';
+        const start = currentPage * ITEMS_PER_PAGE;
+        const end = start + ITEMS_PER_PAGE;
+        const pageItems = activities.slice(start, end);
+
+        pageItems.forEach((act, index) => {
+          const row = document.createElement('tr');
+          row.style.opacity = '0';
+          row.style.transform = 'translateY(-5px)';
+          row.style.transition = `all 0.3s ease ${index * 0.05}s`;
+          
+          row.innerHTML = `
+            <td style="font-size: 0.75rem;">${act.date}</td>
+            <td style="font-size: 0.75rem;">${act.time}</td>
+            <td style="font-size: 0.75rem;"><span class="text-primary">${act.id}</span></td>
+            <td style="font-size: 0.75rem; white-space: nowrap;">${act.name}</td>
+            <td style="font-size: 0.75rem; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${act.details}</td>
+            <td><span class="badge-custom ${act.status.class}" style="font-size: 0.6rem;">${act.status.label}</span></td>
+          `;
+          activityFeed.appendChild(row);
+          setTimeout(() => {
+            row.style.opacity = '1';
+            row.style.transform = 'translateY(0)';
+          }, 10);
+        });
+
+        // Update nav buttons
+        const prevBtn = document.getElementById('prevPageBtn');
+        const nextBtn = document.getElementById('nextPageBtn');
+        if(prevBtn) prevBtn.disabled = currentPage === 0;
+        if(nextBtn) nextBtn.disabled = end >= activities.length;
+      }
+
+      // Initialize activity history if empty
+      if (activities.length === 0) {
+        for (let i = 0; i < 24; i++) {
+          activities.push(createActivity(true));
+        }
+        activities.sort((a,b) => b.timestamp - a.timestamp);
+      }
+
+      // Add exactly ONE new activity per login/load
+      const newActivity = createActivity();
+      activities.unshift(newActivity);
+      
+      // Keep only last 100 items
+      if (activities.length > 100) activities = activities.slice(0, 100);
+      
+      localStorage.setItem('prison_activities_v2', JSON.stringify(activities));
+
+      // Navigation Logic
+      document.getElementById('nextPageBtn')?.addEventListener('click', () => {
+        if ((currentPage + 1) * ITEMS_PER_PAGE < activities.length) {
+          currentPage++;
+          updateDisplay();
+        }
+      });
+ 
+       document.getElementById('prevPageBtn')?.addEventListener('click', () => {
+         if (currentPage > 0) {
+           currentPage--;
+           updateDisplay();
+         }
+       });
+ 
+       // Initial Render
+       updateDisplay();
+     });
+   </script>
+ </body>
+ </html>

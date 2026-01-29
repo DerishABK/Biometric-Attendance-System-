@@ -32,90 +32,9 @@ if ($result && $result->num_rows > 0) {
   <title>Staff Directory - Prison Admin</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+  <link rel="stylesheet" href="admin-style.css">
   <style>
-    :root {
-      --sidebar-width: 220px;
-      --glass-bg: rgba(15, 23, 42, 0.85);
-      --glass-border: rgba(255, 255, 255, 0.08);
-      --accent-color: #0d6efd;
-    }
-    body {
-      min-height: 100vh;
-      background: radial-gradient(circle at top left, #1e3a8a, #050505 60%);
-      color: #fff !important;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      margin: 0;
-      overflow-x: hidden;
-      font-size: 0.85rem;
-    }
-    * { color: inherit; }
-    
-    /* Sidebar */
-    .sidebar {
-      position: fixed;
-      top: 0;
-      left: 0;
-      bottom: 0;
-      width: var(--sidebar-width);
-      background: var(--glass-bg);
-      backdrop-filter: blur(15px);
-      border-right: 1px solid var(--glass-border);
-      color: #f8f9fa;
-      padding: 1rem 0;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      z-index: 1000;
-    }
-    
-    .sidebar-header {
-      padding: 0 1.25rem 1.5rem;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      margin-bottom: 0.75rem;
-    }
-    
-    .sidebar-brand {
-      color: #fff;
-      text-decoration: none;
-      font-size: 1.2rem;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 0.6rem;
-    }
-    
-    .sidebar-brand i {
-      color: var(--accent-color);
-    }
-    
-    .nav-link {
-      color: rgba(255, 255, 255, 0.6) !important;
-      padding: 0.65rem 1.25rem;
-      margin: 0.15rem 0.5rem;
-      border-radius: 0.65rem;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-      transition: all 0.2s ease;
-      font-weight: 500;
-      font-size: 0.85rem;
-    }
-    
-    .nav-link:hover, .nav-link.active {
-      background: rgba(13, 110, 253, 0.1);
-      color: #fff !important;
-    }
-    
-    .nav-link i {
-      font-size: 1.1rem;
-    }
-
-    .main-content { margin-left: var(--sidebar-width); padding: 1.25rem; }
-    
-    .app-card {
-      background: var(--glass-bg); backdrop-filter: blur(10px); border-radius: 0.75rem;
-      border: 1px solid var(--glass-border); padding: 0.75rem; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
-    }
-
-    /* Compact Table */
+    /* Compact Table (Page Specific) */
     .staff-table { width: 100%; border-collapse: collapse; }
     .staff-table th {
       text-align: left; color: rgba(255, 255, 255, 0.4); font-size: 0.65rem;
@@ -149,56 +68,7 @@ if ($result && $result->num_rows > 0) {
   </style>
 </head>
 <body>
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <div class="sidebar-header">
-      <a href="dashboard-admin.php" class="sidebar-brand">
-        <i class="bi bi-shield-lock-fill"></i>
-        <span>Prison Admin</span>
-      </a>
-    </div>
-    
-    <div class="sidebar-menu">
-      <ul class="nav flex-column">
-        <li class="nav-item">
-          <a href="dashboard-admin.php" class="nav-link">
-            <i class="bi bi-grid-1x2-fill"></i>
-            <span>Dashboard</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="admin-prisoner-list.php" class="nav-link">
-            <i class="bi bi-people-fill"></i>
-            <span>Prisoners</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="staff-list.php" class="nav-link active">
-            <i class="bi bi-person-badge-fill"></i>
-            <span>Staff</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="admin-visitation.php" class="nav-link">
-            <i class="bi bi-calendar-event-fill"></i>
-            <span>Visitation</span>
-          </a>
-        </li>
-        <li class="nav-item">
-          <a href="admin-settings.php" class="nav-link">
-            <i class="bi bi-gear-fill"></i>
-            <span>Settings</span>
-          </a>
-        </li>
-        <li class="nav-item mt-auto">
-          <a href="../backend/logout.php" class="nav-link fw-bold" style="color: #ff4d4d !important;">
-            <i class="bi bi-box-arrow-right me-2"></i>
-            <span>Logout</span>
-          </a>
-        </li>
-      </ul>
-    </div>
-  </div>
+  <?php include 'admin-sidebar.php'; ?>
 
   <div class="main-content">
     <div class="d-flex justify-content-between align-items-center mb-3">

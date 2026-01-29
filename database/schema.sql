@@ -84,3 +84,18 @@ INSERT IGNORE INTO users (user_id, password, role, full_name, designation, statu
 ('guard13', 'guard123', 'guard', 'Ishaan Khatter', 'Constable', 'On Duty', 'Workshop Area', 'Day Shift', '2024-01-05', '413'),
 ('guard14', 'guard123', 'guard', 'Rajkummar Rao', 'Constable', 'On Duty', 'Gym Area', 'Day Shift', '2023-02-14', '414'),
 ('guard15', 'guard123', 'guard', 'Tahir Bhasin', 'Constable', 'Off Duty', 'Store Room', 'Night Shift', '2023-04-25', '415');
+ 
+ -- Leave Applications table
+ CREATE TABLE IF NOT EXISTS leaves (
+     id INT AUTO_INCREMENT PRIMARY KEY,
+     user_id VARCHAR(50) NOT NULL,
+     leave_date DATE NOT NULL,
+     shift ENUM('Day Shift', 'Night Shift', 'General') NOT NULL,
+     duration ENUM('Half Day', 'Full Day') NOT NULL,
+     reason TEXT NOT NULL,
+     alt_staff_id VARCHAR(50) NOT NULL,
+     status ENUM('Pending', 'Approved', 'Rejected') DEFAULT 'Pending',
+     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+     FOREIGN KEY (user_id) REFERENCES users(user_id) ON DELETE CASCADE,
+     FOREIGN KEY (alt_staff_id) REFERENCES users(user_id) ON DELETE CASCADE
+ );

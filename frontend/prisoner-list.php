@@ -3,7 +3,7 @@ require_once '../backend/session_start.php';
 include '../backend/db_connect.php';
 
 // Fetch prisoners from database
-$sql = "SELECT prisoner_id, full_name, cell_number, crime FROM prisoners ORDER BY created_at DESC";
+$sql = "SELECT prisoner_id, full_name, cell_number, crime, photo_path FROM prisoners ORDER BY created_at DESC";
 $result = $conn->query($sql);
 ?>
 <!DOCTYPE html>
@@ -81,11 +81,24 @@ $result = $conn->query($sql);
   <!-- Navbar -->
   <nav class="navbar navbar-expand-lg fixed-top">
     <div class="container">
-      <a class="navbar-brand" href="dashboard-warden.php">
-        <i class="bi bi-building-lock me-2"></i>Warden Dashboard
+      <a class="navbar-brand" href="dashboard-<?php echo $_SESSION['role']; ?>.php">
+        <i class="bi bi-building-lock me-2"></i>Prison Monitor
       </a>
-      <div class="ms-auto text-secondary small">
-        Prisoner Database Management
+      <div class="ms-auto d-flex align-items-center">
+        <div class="dropdown">
+          <a href="#" class="nav-link dropdown-toggle d-flex align-items-center text-white text-decoration-none" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <div class="bg-primary rounded-circle d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px; color: white;">
+              <i class="bi bi-person-fill"></i>
+            </div>
+            <span>Profile</span>
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg" aria-labelledby="profileDropdown">
+            <li><a class="dropdown-item" href="dashboard-<?php echo $_SESSION['role']; ?>.php"><i class="bi bi-speedometer2 me-2"></i> Main Page</a></li>
+            <li><a class="dropdown-item" href="profile.php"><i class="bi bi-person-circle me-2"></i> Profile</a></li>
+            <li><hr class="dropdown-divider border-secondary"></li>
+            <li><a class="dropdown-item text-danger fw-bold" href="../backend/logout.php"><i class="bi bi-box-arrow-right me-2"></i> Logout</a></li>
+          </ul>
+        </div>
       </div>
     </div>
   </nav>
@@ -97,9 +110,14 @@ $result = $conn->query($sql);
         
         <div class="d-flex justify-content-between align-items-center mb-4">
           <h2><i class="bi bi-people-fill me-2"></i>Registered Prisoners</h2>
-          <a href="dashboard-warden.php" class="btn btn-outline-light btn-sm">
-            <i class="bi bi-plus-lg me-1"></i> Register New
-          </a>
+          <div class="d-flex gap-2">
+            <button onclick="exportInmatePDF()" class="btn btn-primary btn-sm">
+              <i class="bi bi-file-earmark-pdf-fill me-1"></i> Export PDF
+            </button>
+            <a href="dashboard-warden.php" class="btn btn-outline-light btn-sm">
+              <i class="bi bi-plus-lg me-1"></i> Register New
+            </a>
+          </div>
         </div>
 
         <div class="app-card p-4 p-md-5 shadow-lg">
@@ -107,6 +125,7 @@ $result = $conn->query($sql);
             <table class="table align-middle">
               <thead>
                 <tr>
+                  <th>Photo</th>
                   <th>Prisoner ID</th>
                   <th>Full Name</th>
                   <th>Cell No</th>
@@ -117,7 +136,9 @@ $result = $conn->query($sql);
                 <?php
                 if ($result->num_rows > 0) {
                     while($row = $result->fetch_assoc()) {
+                        $photo = !empty($row['photo_path']) ? $row['photo_path'] : 'https://ui-avatars.com/api/?name=' . urlencode($row['full_name']) . '&background=random';
                         echo "<tr>";
+                        echo "<td><img src='" . $photo . "' class='rounded' style='width:35px; height:35px; object-fit:cover;'></td>";
                         echo "<td><span class='badge-id'>" . $row["prisoner_id"] . "</span></td>";
                         echo "<td>" . $row["full_name"] . "</td>";
                         echo "<td>" . $row["cell_number"] . "</td>";
@@ -140,6 +161,53 @@ $result = $conn->query($sql);
   <!-- Bootstrap JS -->
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 
+  <!-- jsPDF & AutoTable -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.6.0/jspdf.plugin.autotable.min.js"></script>
+
+  <script>
+    function exportInmatePDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF('p', 'mm', 'a4'); // Portrait
+      
+      doc.setFillColor(15, 23, 42);
+      doc.rect(0, 0, 210, 22, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.text("REGISTERED PRISONER LIST", 14, 14);
+      
+      doc.setFontSize(8);
+      doc.text("GENERATED: <?php echo date('d M Y, h:i A'); ?>", 150, 15);
+      
+      const table = document.querySelector(".table");
+      doc.autoTable({
+        html: table,
+        startY: 28,
+        theme: 'striped',
+        headStyles: { 
+            fillColor: [13, 110, 253], 
+            textColor: [255, 255, 255], 
+            fontSize: 10
+        },
+        bodyStyles: { fontSize: 9, cellPadding: 2, minCellHeight: 22 }, // Increase row height for photos
+        columnStyles: {
+            0: { cellWidth: 25, halign: 'center' } // Wider column for photo
+        },
+        didDrawCell: function(data) {
+          if (data.section === 'body' && data.column.index === 0) {
+            const img = data.cell.raw.querySelector('img');
+            if (img && img.src) {
+              // Properly size and center the image within the cell to avoid cropping
+              doc.addImage(img.src, 'JPEG', data.cell.x + 4, data.cell.y + 2, 17, 18);
+            }
+          }
+        }
+      });
+      
+      doc.save("Prisoner_List_<?php echo date('d_M_Y'); ?>.pdf");
+    }
+  </script>
 </body>
 </html>
 <?php $conn->close(); ?>
