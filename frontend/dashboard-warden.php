@@ -457,33 +457,53 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
             <div class="row g-4 mb-4">
               
               <!-- Photo Section -->
-              <div class="col-md-6">
-                <label class="form-label mb-2">Prisoner Photo</label>
-                <div class="upload-options d-flex gap-2 mb-2">
-                  <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1" onclick="openCamera()">
-                    <i class="bi bi-camera me-1"></i> Capture
-                  </button>
-                  <button type="button" class="btn btn-sm btn-outline-secondary flex-grow-1" onclick="document.getElementById('photoInput').click()">
-                    <i class="bi bi-upload me-1"></i> Upload
-                  </button>
-                </div>
-                <div class="upload-box" id="photoPreview">
-                  <i class="bi bi-person-bounding-box fs-1 text-secondary"></i>
-                  <p class="mb-0 mt-2 text-secondary small">No photo selected</p>
-                </div>
-                <input type="file" id="photoInput" name="prisoner_photo" hidden="" accept="image/*" onchange="previewFile(this)">
-                <input type="hidden" id="capturedPhoto" name="captured_photo">
-              </div>
+              <div class="col-12">
+                <label class="form-label mb-3">Biometric Enrollment (Face Recognition - 3 Angles)</label>
+                <div class="row g-3">
+                  <!-- Front Angle -->
+                  <div class="col-md-4">
+                    <div class="angle-label mb-2 small fw-bold text-center">FRONT VIEW</div>
+                    <div class="upload-options d-flex gap-2 mb-2">
+                      <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1" onclick="openCamera('front')">
+                        <i class="bi bi-camera me-1"></i> Capture
+                      </button>
+                    </div>
+                    <div class="upload-box" id="photoPreview-front">
+                      <i class="bi bi-person-bounding-box fs-1 text-secondary"></i>
+                      <p class="mb-0 mt-2 text-secondary small">Front View</p>
+                    </div>
+                    <input type="hidden" id="capturedPhoto-front" name="photo_front">
+                  </div>
+                  
+                  <!-- Left Angle -->
+                  <div class="col-md-4">
+                    <div class="angle-label mb-2 small fw-bold text-center">LEFT PROFILE</div>
+                    <div class="upload-options d-flex gap-2 mb-2">
+                      <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1" onclick="openCamera('left')">
+                        <i class="bi bi-camera me-1"></i> Capture
+                      </button>
+                    </div>
+                    <div class="upload-box" id="photoPreview-left">
+                      <i class="bi bi-person-bounding-box fs-1 text-secondary"></i>
+                      <p class="mb-0 mt-2 text-secondary small">Left Profile</p>
+                    </div>
+                    <input type="hidden" id="capturedPhoto-left" name="photo_left">
+                  </div>
 
-              <!-- Fingerprint -->
-              <div class="col-md-6">
-                <label class="form-label mb-2">Fingerprint Scan</label>
-                <div class="upload-box" style="border-color: rgba(13, 110, 253, 0.4);">
-                  <i class="bi bi-fingerprint fs-1 text-info"></i>
-                  <p class="mb-0 mt-2 text-info">Waiting for sensor...</p>
-                  <button type="button" class="btn btn-sm btn-outline-info mt-3">
-                    <i class="bi bi-arrow-clockwise me-1"></i> Rescan
-                  </button>
+                  <!-- Right Angle -->
+                  <div class="col-md-4">
+                    <div class="angle-label mb-2 small fw-bold text-center">RIGHT PROFILE</div>
+                    <div class="upload-options d-flex gap-2 mb-2">
+                      <button type="button" class="btn btn-sm btn-outline-primary flex-grow-1" onclick="openCamera('right')">
+                        <i class="bi bi-camera me-1"></i> Capture
+                      </button>
+                    </div>
+                    <div class="upload-box" id="photoPreview-right">
+                      <i class="bi bi-person-bounding-box fs-1 text-secondary"></i>
+                      <p class="mb-0 mt-2 text-secondary small">Right Profile</p>
+                    </div>
+                    <input type="hidden" id="capturedPhoto-right" name="photo_right">
+                  </div>
                 </div>
               </div>
             </div>
@@ -537,9 +557,14 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
 
   <script>
     let stream = null;
+    let currentAngle = 'front';
     const cameraModal = new bootstrap.Modal(document.getElementById('cameraModal'));
     
-    async function openCamera() {
+    async function openCamera(angle) {
+      currentAngle = angle;
+      const title = document.querySelector('#cameraModal .modal-title');
+      title.innerHTML = `<i class="bi bi-camera me-2"></i>Capture ${angle.charAt(0).toUpperCase() + angle.slice(1)} View`;
+      
       try {
         stream = await navigator.mediaDevices.getUserMedia({ 
             video: { 
@@ -593,26 +618,14 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
       context.drawImage(video, startX, startY, width, height, 0, 0, canvas.width, canvas.height);
       
       const dataURL = canvas.toDataURL('image/jpeg', 0.9);
-      document.getElementById('capturedPhoto').value = dataURL;
+      document.getElementById(`capturedPhoto-${currentAngle}`).value = dataURL;
       
       // Update Preview
-      const preview = document.getElementById('photoPreview');
+      const preview = document.getElementById(`photoPreview-${currentAngle}`);
       preview.innerHTML = `<img src="${dataURL}" class="w-100 h-100" style="object-fit: cover; position: absolute; top: 0; left: 0;">`;
       
       closeCamera();
       cameraModal.hide();
-    }
-
-    function previewFile(input) {
-      if (input.files && input.files[0]) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const preview = document.getElementById('photoPreview');
-          preview.innerHTML = `<img src="${e.target.result}" class="w-100 h-100" style="object-fit: cover; position: absolute; top: 0; left: 0;">`;
-          document.getElementById('capturedPhoto').value = ""; // Clear captured if uploading
-        };
-        reader.readAsDataURL(input.files[0]);
-      }
     }
     const totalSteps = 3;
 
@@ -820,7 +833,58 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
         btn.innerHTML = originalText;
       });
     }
+
+    function checkNotifications() {
+      fetch('../backend/get_notifications.php')
+        .then(r => r.json())
+        .then(data => {
+          if (data.status === 'success' && data.data.length > 0) {
+            const notif = data.data[0]; 
+            const modalEl = document.getElementById('notificationModal');
+            const modal = new bootstrap.Modal(modalEl);
+            document.getElementById('notificationBody').innerText = notif.message;
+            
+            document.getElementById('markReadBtn').onclick = function() {
+              const formData = new FormData();
+              formData.append('id', notif.id);
+              fetch('../backend/mark_notification_read.php', {
+                method: 'POST',
+                body: formData
+              }).then(() => {
+                modal.hide();
+                setTimeout(checkNotifications, 1000);
+              });
+            };
+            
+            modal.show();
+          }
+        })
+        .catch(e => console.error('Error fetching notifications:', e));
+    }
+
+    // Check for notifications on load
+    document.addEventListener('DOMContentLoaded', () => {
+      checkNotifications();
+    });
   </script>
 
+
+  <!-- Notification Modal -->
+  <div class="modal fade" id="notificationModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content bg-dark text-white border-secondary">
+        <div class="modal-header border-secondary">
+          <h5 class="modal-title"><i class="bi bi-bell-fill me-2 text-warning"></i>New Notification</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body" id="notificationBody">
+          <!-- Notification message will be injected here -->
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-primary btn-sm" id="markReadBtn">Mark as Read</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
 </body></html>
