@@ -381,8 +381,8 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
               </div>
               <div class="col-md-6">
                 <label class="form-label">Contact Number (Emergency)</label>
-                <input type="tel" name="contact_number" class="form-control" required="" placeholder="+91 98765 43210">
-                <div class="invalid-feedback">Please enter a valid contact number.</div>
+                <input type="tel" name="contact_number" class="form-control" required="" value="+91 " placeholder="+91 98765 43210">
+                <div class="invalid-feedback" id="contact-error">Please enter a valid mobile number.</div>
               </div>
               <div class="col-12">
                 <label class="form-label">Permanent Address</label>
@@ -683,6 +683,21 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
           input.nextElementSibling.innerText = "Date of birth is required.";
         }
       }
+
+      // Special Logic: Mobile Number (Prevent 10 same digits and enforce 10 digits after +91)
+      if (input.name === 'contact_number' && value) {
+        const cleanVal = value.replace(/\D/g, ''); // Extract only digits
+        // Remove '91' if it's the prefix (since value starts with +91)
+        const digitsOnly = value.startsWith('+91') ? value.substring(3).replace(/\D/g, '') : cleanVal;
+        
+        if (digitsOnly.length !== 10) {
+          isValid = false;
+          input.nextElementSibling.innerText = "Mobile number must be exactly 10 digits after +91.";
+        } else if (/^(\d)\1{9}$/.test(digitsOnly)) {
+          isValid = false;
+          input.nextElementSibling.innerText = "Mobile number cannot be 10 identical digits.";
+        }
+      }
       
       if (isValid) {
         input.classList.remove('is-invalid');
@@ -784,6 +799,19 @@ if (!isset($_SESSION['user_id']) || trim($_SESSION['role']) !== 'warden') {
       fields.forEach(field => {
         const el = document.querySelector(`[name="${field.name}"]`);
         if (el) {
+          if (field.name === 'contact_number') {
+            el.addEventListener('keydown', (e) => {
+              // Prevent deleting +91
+              if (el.selectionStart < 4 && (e.key === 'Backspace' || e.key === 'Delete')) {
+                e.preventDefault();
+              }
+            });
+            el.addEventListener('input', (e) => {
+              if (!el.value.startsWith('+91 ')) {
+                el.value = '+91 ' + el.value.replace(/^\+91\s*/, '');
+              }
+            });
+          }
           el.addEventListener('input', () => {
              validateInput(el, field.regex);
              if (field.name === 'sentence_duration') calculateReleaseDate();

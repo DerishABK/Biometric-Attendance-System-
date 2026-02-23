@@ -1,0 +1,48 @@
+Contact Number: 9999999999
+Clean Number: 9999999999
+Digits to check: 9999999999
+Length: 10
+Contact Number: +91 9999999999
+Clean Number: 919999999999
+Digits to check: 9999999999
+Length: 10
+Contact Number: 987654321
+Clean Number: 987654321
+Digits to check: 987654321
+Length: 9
+Contact Number: +91 98765432101
+Clean Number: 9198765432101
+Digits to check: 9198765432101
+Length: 13
+Contact Number: +91 9876543210
+Clean Number: 919876543210
+Digits to check: 9876543210
+Length: 10
+Contact Number: 9999999999
+Clean Number: 9999999999
+Digits to check: 9999999999
+Length: 10
+Unique digits: 1
+Identical digits check failed
+Contact Number: +91 9999999999
+Clean Number: 919999999999
+Digits to check: 9999999999
+Length: 10
+Unique digits: 1
+Identical digits check failed
+Contact Number: 987654321
+Clean Number: 987654321
+Digits to check: 987654321
+Length: 9
+Length check failed
+Contact Number: +91 98765432101
+Clean Number: 9198765432101
+Digits to check: 9198765432101
+Length: 13
+Length check failed
+Contact Number: +91 9876543210
+Clean Number: 919876543210
+Digits to check: 9876543210
+Length: 10
+Unique digits: 10
+All validations passed

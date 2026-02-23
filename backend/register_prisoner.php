@@ -16,6 +16,23 @@ if ($_SERVER["REQUEST_METHOD"] == "POST") {
     $admission_date = mysqli_real_escape_string($conn, $_POST['admission_date']);
     $expected_release = mysqli_real_escape_string($conn, $_POST['expected_release']);
     
+    // Server-side validation for contact number (Prevent 10 same digits and enforce 10 digits)
+    $clean_number = preg_replace('/\D/', '', $contact_number);
+    // If it starts with 91 and has 12 digits, it's likely +91XXXXXXXXXX
+    $digits_to_check = (strlen($clean_number) === 12 && substr($clean_number, 0, 2) === '91') ? substr($clean_number, 2) : $clean_number;
+    
+    if (strlen($digits_to_check) !== 10) {
+        echo json_encode(["status" => "error", "message" => "Mobile number must be exactly 10 digits."]);
+        exit();
+    }
+    
+    $unique_digits = count(array_unique(str_split($digits_to_check)));
+    
+    if ($unique_digits === 1) {
+        echo json_encode(["status" => "error", "message" => "Mobile number cannot consist of 10 identical digits."]);
+        exit();
+    }
+    
     // Generate a unique Prisoner ID if not provided (though form has a readonly one)
     $prisoner_id = "P-" . date("Y") . "-" . rand(1000, 9999);
 
